@@ -1,2 +1,0 @@
-# GeoSim
-Geostatistical Simulation
