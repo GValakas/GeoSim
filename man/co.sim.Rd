@@ -2,7 +2,11 @@
 % Please edit documentation in R/co.sim.r
 \name{co.sim}
 \alias{co.sim}
-\title{Co-simulation}
+\title{Co-simulation
+Perform conditional or uncoditional co-simulation of a continuous (transformed multi-Gaussian) and categorical (plurigaussian) GRFs using the turning bands method.
+The function simulates categorical (facies) and continuous variables using spatially correlated GRFs. The GRFs are jointly Gaussian,
+with zero means and unit variances. The GRFs should be correlated.
+Multiple realizations of the simulated facies can be produced in a regular grid.}
 \usage{
 co.sim(
   simu_grid,
@@ -14,49 +18,66 @@ co.sim(
 )
 }
 \arguments{
-\item{simu_grid}{A list of arguments to define the grid parameters. Use list(x0,y0,z0,nx,ny,nz,dx,dy,dz),
-where: x0, y0, z0 are    single values indicating the minimum grid coordinates along EW, NS and vertical directions,
-nx, ny, nz    are single values indicating the number of grid nodes along east, north and vertical directions,
-dx, dy, dz    are single values indicating the grid meshes along EW, NS and vertical directions}
+\item{simu_grid}{A list of arguments to define the grid parameters. Use list(x0, y0, z0, nx, ny, nz, dx, dy, dz),
+where:
+  - x0, y0, z0: Single values indicating the minimum grid coordinates along the East-West, North-South, and vertical directions, respectively.
+  - nx, ny, nz: Single values indicating the number of grid nodes along the East-West, North-South, and vertical directions, respectively.
+  - dx, dy, dz: Single values indicating the grid mesh sizes along the East-West, North-South, and vertical directions, respectively.}
 
-\item{conditioning_data}{A matrix of conditioning (categorical and continuous ) data (number of data x 6). The first columns contain the coordinates (x,y,z) of the conditioning data; the fourth column contains the conditioning values of the categorical data (numerical codes of facies). 
-The fifth column contains the conditioning values of the continuous data and the last column contains the normal scores of the continuous data. Use NaN for the values in 4th to 6th column when categorical and continuous values are not at the same locations.
-When no conditional data are imported, the argument remains empty, so an unconditional model is built.}
+\item{conditioning_data}{A matrix of conditioning data (categorical and continuous) with dimensions (number of data x 6). The columns are as follows:
+  - Columns 1-3: Coordinates (x, y, z) of the conditioning data.
+  - Column 4: Conditioning values of the categorical data (numerical codes of facies).
+  - Column 5: Conditioning values of the continuous data.
+  - Column 6: Normal scores of the continuous data.
+Use NaN for the values in the 4th to 6th columns when categorical and continuous values are not at the same locations.
+When no conditional data is imported, leave this argument empty to build an unconditional model.}
 
-\item{truncation_rule}{A list of arguments to determine the truncation rule of Plurigaussian. Use list(nfield,nthres,thresholds,flag).
-where: nfield is the number of GRFs used for the truncation rule,
-nthres is a vector with the number of thresholds for each GRF (1  x nfield),
-thresholds is a vector of the thresholds for all GRFs (1 x sum(nthres)),
-flag is a vector with category numbers codifying the truncation rule}
+\item{truncation_rule}{A list of arguments to determine the truncation rule of Plurigaussian. Use list(nfield, nthres, thresholds, flag),
+where:
+  - nfield: Number of GRFs used for the truncation rule.
+  - nthres: A vector with the number of thresholds for each GRF (1 x nfield).
+  - thresholds: A vector of the thresholds for all GRFs (1 x sum(nthres)).
+  - flag: A vector with category numbers codifying the truncation rule.
+  - vpc_matrix: A matrix containing the proportions of facies for each z-level. It can be the matrix of vertical proportion curves obtained from the vpc function. Each row name in the matrix should define the corresponding z-level. Currently, the input is limited to a matrix that represents the vertical proportions across the entire examined area. If no available data is provided, leave it as NULL.}
 
-\item{variog_model}{A list of arguments to define the nested variogram theoretical models. Use list(model,cc,b,nugget)
-where: model is a matrix containing the covariance model for the GRFs (nested structures x 7 matrix). Each row corresponds to a nested structure and is codified as: type, scale factors, angles. Use the codes of the availiable types of variogram model (see details). There are three scale factors (along the rotated NS, EW and vertical axes) and three angles to define the coordinates rotation (azimuth, dip and plunge), see Deutsch & Journel (1997, p.25).
-cc is a matrix indicating the sills of nested structures (nested structures x (1 + nfield)^2),
-b is column vector with the additional parameters required for specific covariance types  (nested structures x 1), Also, see details.
-nugget    is a row vector with nugget effect variance-covariance matrix with size of (1 + nfield)^2.}
+\item{variog_model}{A list of arguments to define the nested variogram theoretical models. Use list(model, cc, b, nugget),
+where:
+  - model: A matrix containing the covariance model for the GRFs (nested structures x 7 matrix). Each row corresponds to a nested structure and is codified as: type, scale factors, angles. Use the codes of the available types of variogram models (see details). There are three scale factors (along the rotated NS, EW, and vertical axes) and three angles to define the coordinate rotation (azimuth, dip, and plunge). See Deutsch & Journel (1997, p. 25) for more information.
+  - cc: A matrix indicating the sills of nested structures (nested structures x (1 + nfield)^2).
+  - b: A column vector with the additional parameters required for specific covariance types (nested structures x 1). See details for specific covariance types and their corresponding requirements.
+  - nugget: A row vector with the nugget effect variance-covariance matrix of size (1 + nfield)^2.}
 
-\item{neigb_par}{A list of arguments to define the moving neighborhood to condition the data. Use list list(radius,angles,octant,ndata) 
-where: radius is a row vector row vector with the maximum search radii along the rotated NS, EW and vertical axes (1 x 3) for conditioning data,
-angles is a row vector with the angles for anisotropic search (1 x 3), based on Deutsch and Journel (1997, p. 27),
-octant takes values 1 or 0, specifying if the neighborhood should be divided into octants (1) or not (0),
-ndata is a single value with the number of conditioning data per octant or in total}
+\item{neigb_par}{A list of arguments to define the moving neighborhood to condition the data. Use list(radius, angles, octant, ndata),
+where:
+  - radius: A row vector with the maximum search radii along the rotated NS, EW, and vertical axes (1 x 3) for conditioning data.
+  - angles: A row vector with the angles for anisotropic search (1 x 3), based on Deutsch and Journel (1997, p. 27).
+  - octant: A value of 1 or 0, specifying if the neighborhood should be divided into octants (1) or not (0).
+  - ndata: A single value indicating the number of conditioning data per octant or in total.}
 
-\item{simu_par}{A list of arguments to define the simulation parameters. Use list(nlines,nrealiz,seed,nnodes,itGibbs),
-where: nlines is a single value indicating the number of lines to use for simulating the nested structures by turning bands,
-nrealiz is a single value indicating the number of realizations to produce,
-seed is the seed number for generating random values}
+\item{simu_par}{A list of arguments to define the simulation parameters. Use list(nlines, nrealiz, seed, nnodes, itGibbs),
+where:
+  - nlines: A single value indicating the number of lines to use for simulating the nested structures by turning bands.
+  - nrealiz: A single value indicating the number of realizations to produce.
+  - seed: The seed number for generating random values.
+  - nnodes: The number of nodes per line segment. 
+  - itGibbs: The number of iterations in Gibbs' sampling.}
 }
 \value{
 A list of the simulated coordinates and the respective simulated categorical and continuous values.
-coord contains the center of gridded blocks (number of blocks x 3), 
-categoricalVar contains the simulated values of categorical variable (number of blocks x nrealiz). Each column is a realization of categorical variable.  
-continuousVar contains the simulated values of continuous variable (number of blocks x nrealiz)
+  - coord: A matrix containing the center coordinates of gridded blocks (number of blocks x 3).
+  - categoricalVar: A matrix containing the simulated values of the categorical variable (number of blocks x nrealiz).
+    Each column represents a realization of the categorical variable.
+  - continuousVar: A matrix containing the simulated values of the continuous variable (number of blocks x nrealiz).
 }
 \description{
-Conditional co-simulation of a continuous (transformed multi-Gaussian) and categorical (plurigaussian) GRFs using the turning bands method.
-The function simulates categorical (facies) and continuous variables using spatially correlated GRFs. The GRFs  are stationary and jointly Gaussian,
+Co-simulation
+Perform conditional or uncoditional co-simulation of a continuous (transformed multi-Gaussian) and categorical (plurigaussian) GRFs using the turning bands method.
+The function simulates categorical (facies) and continuous variables using spatially correlated GRFs. The GRFs are jointly Gaussian,
 with zero means and unit variances. The GRFs should be correlated.
 Multiple realizations of the simulated facies can be produced in a regular grid.
+}
+\references{
+- Emery, X., & Silva, D. A. (2009). Conditional co-simulation of continuous and categorical variables for geostatistical applications. Computers & Geosciences, 35(6), 1234–1246. https://doi.org/10.1016/j.cageo.2008.07.005
 }
 \seealso{
 pluri.sim

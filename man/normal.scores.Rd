@@ -2,7 +2,7 @@
 % Please edit documentation in R/normal.scores.r
 \name{normal.scores}
 \alias{normal.scores}
-\title{Transform a variable into Normal Scores}
+\title{Transform a Variable into Normal Scores}
 \usage{
 normal.scores(values)
 }
@@ -10,8 +10,9 @@ normal.scores(values)
 \item{values}{A vector of values to be transformed.}
 }
 \description{
-Transform a variable into Normal Scores
+This function transforms a variable into normal scores.
 }
 \details{
-The z values weights are taken as equal
+The z-values weights are taken as equal.
+Ensure that the provided data values follow a normal distribution for accurate transformation into normal scores.
 }

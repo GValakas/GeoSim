@@ -7,15 +7,15 @@
 replace.values(input_data, old_values, new_values)
 }
 \arguments{
-\item{input_data}{A vector of values (N) to be replaced}
+\item{input_data}{A vector of values (N) to be replaced.}
 
-\item{old_values}{A vector with n values to be replaced}
+\item{old_values}{A vector of length n containing the values to be replaced.}
 
-\item{new_values}{A vector with n values to replace the old_values}
+\item{new_values}{A vector of length n containing the values to replace the old_values.}
 }
 \description{
 Replace the values of a categorical variable with new values
 }
 \note{
-The length of old values and new values should be equal.
+The length of old_values and new_values should be equal.
 }

@@ -7,52 +7,39 @@
 rvmodel(truncation_rule, variog_model, h_lag, nlag, azm, dip, nMC)
 }
 \arguments{
-\item{truncation_rule}{A list of arguments to determine the truncation rule of Plurigaussian. Use list(nfield,nthres,thresholds,flag).
-where: nfield is the number of GRFs used for the truncation rule,
-nthres is a vector with the number of thresholds for each GRF (1  x nfield),
-thresholds is a vector of the thresholds for all GRFs (1 x sum(nthres)),
-flag is a vector with category numbers codifying the truncation rule}
+\item{truncation_rule}{A list of arguments to determine the truncation rule of Plurigaussian. Use list(nfield, nthres, thresholds, flag),
+where:
+  - nfield: Number of GRFs used for the truncation rule.
+  - nthres: A vector with the number of thresholds for each GRF (1 x nfield).
+  - thresholds: A vector of the thresholds for all GRFs (1 x sum(nthres)).
+  - flag: A vector with category numbers codifying the truncation rule.}
 
-\item{variog_model}{A list of arguments to define the nested variogram theoretical models. Use list(model,cc,b,nugget)
-where: model is a matrix containing the covariance model for the GRFs (nested structures x 7 matrix). Each row corresponds to a nested structure and is codified as: type, scale factors, angles. Use the codes of the availiable types of variogram model (see details). There are three scale factors (along the rotated NS, EW and vertical axes) and three angles to define the coordinates rotation (azimuth, dip and plunge), see Deutsch & Journel (1997, p.25).
-cc is a matrix indicating the sills of nested structures (nested structures x nfield^2). In the case of co-simulation modeling, cc is a matrix with dimension (nested structures x (1 + nfield)^2)
-b is column vector with the additional parameters required for specific covariance types  (nested structures x 1), Also, see details.
-nugget is a row vector with nugget effect variance-covariance matrix with size of nfield^2. In the case of co-simulation modeling, nugget is a row vector with dimension (1 + nfield)^2.}
+\item{variog_model}{A list of arguments to define the nested variogram theoretical models. Use list(model, cc, b, nugget),
+where:
+  - model: A matrix containing the covariance model for the GRFs (nested structures x 7 matrix). Each row corresponds to a nested structure and is codified as: type, scale factors, angles. Use the codes of the available types of variogram models (see details). There are three scale factors (along the rotated NS, EW, and vertical axes) and three angles to define the coordinate rotation (azimuth, dip, and plunge). See Deutsch & Journel (1997, p. 25) for more information.
+  - cc: A matrix indicating the sills of nested structures (nested structures x (1 + nfield)^2).
+  - b: A column vector with the additional parameters required for specific covariance types (nested structures x 1). See details for specific covariance types and their corresponding requirements.
+  - nugget: A row vector with the nugget effect variance-covariance matrix of size (1 + nfield)^2.}
 
 \item{h_lag}{The lag distance (single value)}
 
 \item{nlag}{The number of lags (single value)}
 
-\item{azm}{azimuth (single value)}
+\item{azm}{The azimuth (single value)}
 
-\item{dip}{dip (single value)}
+\item{dip}{The dip (single value)}
 
 \item{nMC}{The number of Monte Carlo realizations (single value)}
 }
 \value{
-An array of semi-variograms between rock type indicators (ncategory * ncategory * nlag matrix). In the case of co-simulation modeling the function returns a list including:
-pg_variograms: semi-variograms between facies type indicators (ncategory * ncategory * nlag matrix)
-cross_variog: semi-variograms between Gaussian field Z0 and facies type indicators (ncategory * nlag matrix)
+In the case of Plurigaussian modeling the function returns an array of variograms (simple and cross) of facies indicators (ncategory * ncategory * nlag matrix). In the case of co-simulation modeling, the function returns cross-variograms between Gaussian field Z0 and facies indicators (ncategory * nlag matrix)
 }
 \description{
-Variogram (simple and cross) Modeling of Facies Indicator or/and cross semi-variograms between Z0 and Facies indicator (Co-simulation) for the specified direction and lag distances.
-The function helps to determine the model parameters, in particular the threshold values and the simple and cross semi-variograms of the GRFs.
-The calculation of simple and cross-variograms is performed by Monte Carlo simulation.
+The function helps to determine the coefficients of the corgionalization model. In the case of Plurigaussian moedling, the model indicator variograms and cross-variograms of facies are calculated to examine the fitting of the underlying GRFs variograms. 
+In the case of co-simulation, the model cross variograms of facies and Normal scores are calculated. The calculation of simple and cross-variograms is performed by Monte Carlo simulation.
 }
 \details{
-The output of the function is a list of two matrices: $coord contains the center of blocks in the grid (number of blocks x 3) and $categoricalVar contains the simulated values of categorical variable (number of blocks x nrealiz - each column is a realization of the categorical variable).
-Available types of variogram model:
-1: spherical
-2: exponential (beware that range = 3*scale factor)
-3: gamma (parameter b > 0)
-4: stable (parameter b between 0 and 2)
-5: cubic
-6: Gaussian
-7: cardinal sine
-8: Bessel J (parameter b > 0)
-9: Bessel K (parameter b > 0)
-10: generalized Cauchy (parameter b)
-11: exponential sine
+To see the available types of variogram model see co.sim function. In the case of co-simulation, the number of rows of sills matrix differs from the number of GRFs of Plurigaussian modeling.
 }
 \examples{
 truncation_rule <- list(nfield = 2 , nthres = c(2,2),thresholds = 

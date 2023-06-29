@@ -1,13 +1,23 @@
 #' Calculate the thresholds associated with a given truncation rule and given facies proportions when the number of GRFs are independent.
 #'
-#' @param flag is a vector with category numbers codifying the truncation rule
-#' @param nthres is a vector with the number of thresholds for each GRF (1  x nfield)
-#' @param proportions is a vector with the proportions for each facies
-#' @param ymin a value equals to -Inf. ymin is updated whren the function is used recursively
-#' @param ymax a value equals to Inf. ymax is updated whren the function is used recursively
-#' @return A vector with the thresholds 
+#' Calculate Thresholds for Truncation Rule and Facies Proportions
 #'
-#' @details Use calculate_thresholds(flag,nthres,proportions) and do not define the arguments ymin and ymax that are used recursively
+#' @param flag A vector with category numbers codifying the truncation rule.
+#' @param nthres A vector with the number of thresholds for each GRF (1 x nfield).
+#' @param proportions A vector with the proportions for each facies.
+#' @param ymin A value representing negative infinity (-Inf). The 'ymin' value is updated recursively when the function is used iteratively.
+#' @param ymax A value representing positive infinity (Inf). The 'ymax' value is updated recursively when the function is used iteratively.
+#' @return A vector with the calculated thresholds.
+#'
+#' @details Use calculate_thresholds(flag, nthres, proportions) and do not define the arguments 'ymin' and 'ymax', which are used recursively.
+#'
+#' @references This function is a translation of MATLAB code written by Emery (2007).
+#' - Emery, X. (2007). Simulation of geological domains using the plurigaussian model: New developments and computer programs. Computers & Geosciences, 33(9), 1189–1201. DOI: 10.1016/j.cageo.2007.01.006
+#'
+#' @examples
+#' # Example usage
+#' calculate.thresholds(flag = c(2,1,3,2,1,5,2,4,4), nthres = c(2,2), 
+#' proportions = c(0.426, 0.253, 0.047, 0.205, 0.069))
 
 calculate.thresholds <- function(flag,nthres,proportions,ymin,ymax){
 nfield <- length(nthres) 
@@ -85,7 +95,18 @@ cumprop <- pnorm(ordered_ymin[1]) + cumprop
 }else{
 cumprop <- pnorm(ordered_ymin[1]) + cumprop / product 
 }
-yi <- qnorm(cumprop)  
+if (is.na(cumprop)){
+
+yi <- -Inf
+}else{
+if (cumprop < 0) {
+yi<--Inf
+}else if(cumprop > 1){
+yi<-Inf
+}else{
+yi <- qnorm(cumprop,mean = 0, sd = 1, lower.tail = TRUE)  
+}
+}
 # Use the function recursively to determine the other thresholds
 if (nfield > 1){
 nthres1 <- c(i-1, ordered_nthres[2:nfield]) 
@@ -105,7 +126,7 @@ ymax2 <- ordered_ymax
 thresholds1 <- calculate.thresholds(flag1,nthres1,proportions,ymin1,ymax1)	  
 thresholds2 <- calculate.thresholds(flag2,nthres2,proportions,ymin2,ymax2)
 
-#thresholds2 <-c(1.0771,-0.4919,0.6591)
+
 t1 <- NA
 t2 <- NA
 if(sumthres1 >=  (nthres1[1] + 1)){
@@ -115,20 +136,30 @@ if(sumthres2 >=  (nthres2[1] + 1)){
 t2 <- thresholds2[((nthres2[1] + 1):sumthres2)]
 }
 t_matrix<-rbind(t1,t2)
+tmax<-(apply(t_matrix,2,max))
+
+
 if (nthres1[1] >= 1){
-temp_thresholds <- c(thresholds1[1:nthres1[1]], yi)
+temp_thresholds1 <- c(thresholds1[1:nthres1[1]])
 } else {
-temp_thresholds <- yi
-}
-if (nthres2[1] >= 1){
-temp_thresholds <- c(temp_thresholds, thresholds2[1:nthres2[1]])
+temp_thresholds1 <- c()
 }
 
-thresholds <- c(temp_thresholds,(sort(apply(t_matrix,2,max))))
-if (all(flag2[1:length(flag2)]==flag2[length(flag2):1])){
-index_thres <- c((cthres[k] + 1):cthres[nfield + 1],1:cthres[k])
-thresholds <-thresholds[index_thres]
+if (nthres2[1] >= 1){
+temp_thresholds2 <- c(thresholds2[1:nthres2[1]])
+}else{
+temp_thresholds2<-c()
 }
+
+thresholds <-rep(NaN,length(c(temp_thresholds1,temp_thresholds2,yi,tmax)))
+
+indices1 <-c((cthres[k] + 1):cthres[nfield + 1])
+if (k == 1){
+indices2 <- c()
+} else{
+indices2 <- (2:cthres[k])
+}
+thresholds[unique(c(indices1, indices2))] <- c(temp_thresholds1, yi, temp_thresholds2,tmax)
 
 return(thresholds)
 }
@@ -137,5 +168,4 @@ return(thresholds)
 }
  thresholds <- rep(-Inf,length(nthres))
 }
-
 

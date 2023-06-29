@@ -7,22 +7,23 @@
 facies.contacts(data_Facies, facies_color, display)
 }
 \arguments{
-\item{data_Facies}{A data frame having colums with names id and Facies. id colum determines the id of a borehole and Facies colum contains the category of Facies. Insert the x and y columns in the case no id coulum is defined.}
+\item{data_Facies}{A data frame with columns 'id' and 'Facies', where 'id' determines the borehole ID and 'Facies' contains the facies categories. 
+If no 'id' column is defined, insert the 'x' and 'y' columns instead.}
 
-\item{facies_color}{A vector with colors (color for each category) in alphabetical order of facies. The argument is used when the contacts probabilities prot are produced (if not = NULL).}
+\item{facies_color}{A vector with colors representing each facies category, arranged in alphabetical order. This argument is used when the contact probabilities 'prot' are produced (if not equal to NULL).}
 
-\item{display}{A value indicates to produce (=1) or not (=0) the barplots of contacts for each facies.}
+\item{display}{A value indicating whether to produce bar plots of contacts for each facies (1) or not (0).}
 }
 \value{
-The frequencies of facies contacts and the respective plots
+The frequencies of facies contacts and their respective plots.
 }
 \description{
-Calculate the contacts of facies in a borehole dataset and plot them
+This function calculates the contacts of facies in a borehole dataset and plots them.
 }
 \examples{
 data_Facies <- SFM_data
-facies_color<-c("orange", "black", "red","green","blue") 
-# color in facies Alphabetic order (AL,CO,HD,MG,SG)
-display <- 1
+facies_color <- c("orange", "black", "red", "green", "blue") 
+# Colors in alphabetical order of facies: AL, CO, HD, MG, SG
+facies.contacts(data_Facies, facies_color, display = 1)
 
 }

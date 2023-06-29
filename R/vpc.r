@@ -1,20 +1,23 @@
-#' Vertical Proportions Curves
+#' Calculate Vertical Proportions Matrix
 #'
-#' Calculate proportion curves of faces along the vertical direction over the domain in a grid (also global proportion curves).
-#' @param data_Facies A data frame with columns x, y, z coordinates, and the Facies data. The columns must have the names x, y, z and Facies, respectively.
-#' Facies colum contains the category of Facies in alphabetic code or numeric code
-#' @param vpc_step A list of x, y, and z wich define the partition of the examined gird
-#' @param xy_grid A list of arguments to define the grid parameters. Use list(xmin, xmax, ymin,ymax),
-#' where: xmin, xmax, ymin, ymax are single values indicating the minimum and maximum grid coordinates along EW and NS directions,
-#' where the proportions curves are calculated
+#' This function calculates the proportion matrix of facies along the vertical direction over the domain in a grid. 
+#' @param data_Facies A data frame containing the columns 'x', 'y', 'z', and 'Facies' representing the coordinates and facies data. 
+#' The column names must be exactly 'x', 'y', 'z', and 'Facies', respectively. 
+#' The 'Facies' column should contain the facies categories in alphabetical or numeric codes.
+#' @param vpc_step A list of 'x', 'y', and 'z' values defining the partition of the examined grid.
+#' @param xy_grid A list specifying the grid parameters. Use the format list(xmin, xmax, ymin, ymax) to indicate the minimum and maximum grid coordinates. 
+#' along the east-west (EW) and north-south (NS) directions, where the proportion matrix is calculated.
 #'
-#' @return An array of proportions for each partiton of the grid (array)
+#' @return An array of proportions of facies for each partition of the grid (array).
+#'
+#' details The function calculates the vertical proportion curves, which represent the proportion of each facies category along the vertical direction within each partition of the grid. It takes into account the provided facies data and their corresponding spatial coordinates.
 #'
 #' @examples
+#' # Example usage
 #' vpc_step<-list(x = 2000, y = 2000, z=20)
 #' xy_grid <-list(xmin=-16000, xmax = -12000, ymin = 16000, ymax = 20000)
 #' vpc_results <- vpc(SFM_data, vpc_step, xy_grid)
-#' ## Example to plot the VPC using ggplot2 package
+#' # Example to plot the Vertical Proportion Curves (VPC) using ggplot2 package
 #' \dontrun{
 #'
 #' library("ggplot2")

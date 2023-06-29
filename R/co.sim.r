@@ -1,46 +1,61 @@
 #' Co-simulation
-#'
-#' Conditional co-simulation of a continuous (transformed multi-Gaussian) and categorical (plurigaussian) GRFs using the turning bands method.
-#' The function simulates categorical (facies) and continuous variables using spatially correlated GRFs. The GRFs  are stationary and jointly Gaussian,
+#' Perform conditional or uncoditional co-simulation of a continuous (transformed multi-Gaussian) and categorical (plurigaussian) GRFs using the turning bands method.
+#' The function simulates categorical (facies) and continuous variables using spatially correlated GRFs. The GRFs are jointly Gaussian,
 #' with zero means and unit variances. The GRFs should be correlated.
 #' Multiple realizations of the simulated facies can be produced in a regular grid.
 #'
-#' @param simu_grid A list of arguments to define the grid parameters. Use list(x0,y0,z0,nx,ny,nz,dx,dy,dz),
-#' where: x0, y0, z0 are	single values indicating the minimum grid coordinates along EW, NS and vertical directions,
-#' nx, ny, nz	are single values indicating the number of grid nodes along east, north and vertical directions,
-#' dx, dy, dz	are single values indicating the grid meshes along EW, NS and vertical directions
+#' @param simu_grid A list of arguments to define the grid parameters. Use list(x0, y0, z0, nx, ny, nz, dx, dy, dz),
+#' where:
+#'   - x0, y0, z0: Single values indicating the minimum grid coordinates along the East-West, North-South, and vertical directions, respectively.
+#'   - nx, ny, nz: Single values indicating the number of grid nodes along the East-West, North-South, and vertical directions, respectively.
+#'   - dx, dy, dz: Single values indicating the grid mesh sizes along the East-West, North-South, and vertical directions, respectively.
 #'
-#' @param conditioning_data A matrix of conditioning (categorical and continuous ) data (number of data x 6). The first columns contain the coordinates (x,y,z) of the conditioning data; the fourth column contains the conditioning values of the categorical data (numerical codes of facies). 
-#' The fifth column contains the conditioning values of the continuous data and the last column contains the normal scores of the continuous data. Use NaN for the values in 4th to 6th column when categorical and continuous values are not at the same locations.
-#' When no conditional data are imported, the argument remains empty, so an unconditional model is built.
+#' @param conditioning_data A matrix of conditioning data (categorical and continuous) with dimensions (number of data x 6). The columns are as follows:
+#'   - Columns 1-3: Coordinates (x, y, z) of the conditioning data.
+#'   - Column 4: Conditioning values of the categorical data (numerical codes of facies).
+#'   - Column 5: Conditioning values of the continuous data.
+#'   - Column 6: Normal scores of the continuous data.
+#' Use NaN for the values in the 4th to 6th columns when categorical and continuous values are not at the same locations.
+#' When no conditional data is imported, leave this argument empty to build an unconditional model.
+#' 
+#' @param truncation_rule A list of arguments to determine the truncation rule of Plurigaussian. Use list(nfield, nthres, thresholds, flag),
+#' where:
+#'   - nfield: Number of GRFs used for the truncation rule.
+#'   - nthres: A vector with the number of thresholds for each GRF (1 x nfield).
+#'   - thresholds: A vector of the thresholds for all GRFs (1 x sum(nthres)).
+#'   - flag: A vector with category numbers codifying the truncation rule.
+#'   - vpc_matrix: A matrix containing the proportions of facies for each z-level. It can be the matrix of vertical proportion curves obtained from the vpc function. Each row name in the matrix should define the corresponding z-level. Currently, the input is limited to a matrix that represents the vertical proportions across the entire examined area. If no available data is provided, leave it as NULL.
 #'
-#' @param truncation_rule A list of arguments to determine the truncation rule of Plurigaussian. Use list(nfield,nthres,thresholds,flag).
-#' where: nfield is the number of GRFs used for the truncation rule,
-#' nthres is a vector with the number of thresholds for each GRF (1  x nfield),
-#' thresholds is a vector of the thresholds for all GRFs (1 x sum(nthres)),
-#' flag is a vector with category numbers codifying the truncation rule
+#' @param variog_model A list of arguments to define the nested variogram theoretical models. Use list(model, cc, b, nugget),
+#' where:
+#'   - model: A matrix containing the covariance model for the GRFs (nested structures x 7 matrix). Each row corresponds to a nested structure and is codified as: type, scale factors, angles. Use the codes of the available types of variogram models (see details). There are three scale factors (along the rotated NS, EW, and vertical axes) and three angles to define the coordinate rotation (azimuth, dip, and plunge). See Deutsch & Journel (1997, p. 25) for more information.
+#'   - cc: A matrix indicating the sills of nested structures (nested structures x (1 + nfield)^2).
+#'   - b: A column vector with the additional parameters required for specific covariance types (nested structures x 1). See details for specific covariance types and their corresponding requirements.
+#'   - nugget: A row vector with the nugget effect variance-covariance matrix of size (1 + nfield)^2.
 #'
-#' @param variog_model A list of arguments to define the nested variogram theoretical models. Use list(model,cc,b,nugget)
-#' where: model is a matrix containing the covariance model for the GRFs (nested structures x 7 matrix). Each row corresponds to a nested structure and is codified as: type, scale factors, angles. Use the codes of the availiable types of variogram model (see details). There are three scale factors (along the rotated NS, EW and vertical axes) and three angles to define the coordinates rotation (azimuth, dip and plunge), see Deutsch & Journel (1997, p.25).
-#' cc is a matrix indicating the sills of nested structures (nested structures x (1 + nfield)^2),
-#' b is column vector with the additional parameters required for specific covariance types  (nested structures x 1), Also, see details.
-#' nugget	is a row vector with nugget effect variance-covariance matrix with size of (1 + nfield)^2.
+#' @param neigb_par A list of arguments to define the moving neighborhood to condition the data. Use list(radius, angles, octant, ndata),
+#' where:
+#'   - radius: A row vector with the maximum search radii along the rotated NS, EW, and vertical axes (1 x 3) for conditioning data.
+#'   - angles: A row vector with the angles for anisotropic search (1 x 3), based on Deutsch and Journel (1997, p. 27).
+#'   - octant: A value of 1 or 0, specifying if the neighborhood should be divided into octants (1) or not (0).
+#'   - ndata: A single value indicating the number of conditioning data per octant or in total.
 #'
-#' @param neigb_par A list of arguments to define the moving neighborhood to condition the data. Use list list(radius,angles,octant,ndata) 
-#' where: radius is a row vector row vector with the maximum search radii along the rotated NS, EW and vertical axes (1 x 3) for conditioning data,
-#' angles is a row vector with the angles for anisotropic search (1 x 3), based on Deutsch and Journel (1997, p. 27),
-#' octant takes values 1 or 0, specifying if the neighborhood should be divided into octants (1) or not (0),
-#' ndata is a single value with the number of conditioning data per octant or in total
-#'
-#' @param simu_par A list of arguments to define the simulation parameters. Use list(nlines,nrealiz,seed,nnodes,itGibbs),
-#' where: nlines is a single value indicating the number of lines to use for simulating the nested structures by turning bands,
-#' nrealiz is a single value indicating the number of realizations to produce,
-#' seed is the seed number for generating random values
+#' @param simu_par A list of arguments to define the simulation parameters. Use list(nlines, nrealiz, seed, nnodes, itGibbs),
+#' where:
+#'   - nlines: A single value indicating the number of lines to use for simulating the nested structures by turning bands.
+#'   - nrealiz: A single value indicating the number of realizations to produce.
+#'   - seed: The seed number for generating random values.
+#'   - nnodes: The number of nodes per line segment. 
+#'   - itGibbs: The number of iterations in Gibbs' sampling. 
 #'
 #' @return A list of the simulated coordinates and the respective simulated categorical and continuous values.
-#' coord contains the center of gridded blocks (number of blocks x 3), 
-#' categoricalVar contains the simulated values of categorical variable (number of blocks x nrealiz). Each column is a realization of categorical variable.  
-#' continuousVar contains the simulated values of continuous variable (number of blocks x nrealiz)
+#'   - coord: A matrix containing the center coordinates of gridded blocks (number of blocks x 3).
+#'   - categoricalVar: A matrix containing the simulated values of the categorical variable (number of blocks x nrealiz).
+#'     Each column represents a realization of the categorical variable.
+#'   - continuousVar: A matrix containing the simulated values of the continuous variable (number of blocks x nrealiz).
+#'
+#' @references
+#'   - Emery, X., & Silva, D. A. (2009). Conditional co-simulation of continuous and categorical variables for geostatistical applications. Computers & Geosciences, 35(6), 1234–1246. https://doi.org/10.1016/j.cageo.2008.07.005
 #'
 #' @seealso pluri.sim
 #'
@@ -84,18 +99,24 @@ index_YZ <- which(!is.nan(conditioning_data[ ,5]))
 tableYZ <- matrix(NaN, nrow = length(index_YZ), ncol = 2)
 tableYZ[, 1] <- conditioning_data[index_YZ, 5]
 tableYZ[, 2] <- conditioning_data[index_YZ, 6] + 1e-10
+
+index_YZ <- which(!is.nan(conditioning_data[ ,5]))
+tableYZ <- matrix(NaN, nrow = length(index_YZ), ncol = 2)
+tableYZ[, 1] <- conditioning_data[index_YZ, 5]
+tableYZ[, 2] <- conditioning_data[index_YZ, 6] + 1e-10
 }
-if (!exists("zymin")){
-zymin <- NULL
+tableYZ <- unique(tableYZ, fromLast = FALSE)
+if (!exists("yzmin")){
+yzmin <- NULL
 }
-if (is.null(zymin)){
-zymin <- min(tableYZ[ , 1])
+if (is.null(yzmin)){
+yzmin <- min(tableYZ[ , 1])
 }
-if (!exists("zymax")){
-zymax <- NULL
+if (!exists("yzmax")){
+yzmax <- NULL
 }
-if (is.null(zymax)){
-zymax <- max(tableYZ[ , 1])
+if (is.null(yzmax)){
+yzmax <- max(tableYZ[ , 1])
 }
 if (!exists("tail_anamor")){
 tail_anamor <- NULL
@@ -108,7 +129,8 @@ nfield <- truncation_rule$nfield
 nthres <- truncation_rule$nthres
 thresholds <- truncation_rule$thresholds
 flag <- truncation_rule$flag
-if (length(flag) != prod(nthres + 1)){stop('GeoSim package: The truncation rule is inconsistent with the number of thresholds')}
+vpc_matrix <- truncation_rule$vpc_matrix
+if (length(flag) != prod(nthres + 1)){stop('GeoSim Package: The truncation rule is inconsistent with the number of thresholds. Please make sure the length of the thresholds vector matches the total number of thresholds determined by the nthres vector.')}
 # Coregionalization Model
 model <- variog_model$model
 nst <- nrow(model) # number of nested structures
@@ -264,8 +286,11 @@ izsbtosr <- matrix(results_picksupr$izsbtosr, nrow=1)
 rm(results_picksupr)
 }
 
-# Prepare super-block search strategy  
+# Prepare super-block search strategy 
+t_start_neigb<-Sys.time() 
 ydata2 <- Gibbs_cosim_cpp(datacoord, idata, ydata, nfield, flag, nthres, thresholds, model, sill, b, sillnugget, nrealiz / nvar, itGibbs, prepare_lines$model_rotationmatrix, search_rotationmatrix, cc_unique, octant, ndata, nxsup, nysup, nzsup, xmnsup, ymnsup, zmnsup, xsizsup, ysizsup, zsizsup, ixsbtosr, iysbtosr, izsbtosr,nisb)
+t_finish_neigb<-Sys.time()
+t_finish_neigb-t_start_neigb
 # How many data locations can be simulated simultaneously?
 m2 <- max(1 ,min(m0, nnodes)) 
 cc_sequence <- c(seq(0,(m0 - 0.5), m2), m0) 
@@ -273,7 +298,10 @@ seed_nugget_data <- ceiling(1e7 * runif(1))
 # Loop over the sequences of data points
 for (n in 1:(length(cc_sequence) - 1)){
 index <- t(t((cc_sequence[n] + 1):cc_sequence[n + 1])) 
+t_start_neigb<-Sys.time() 
 simudata[index, ] <- tbmain_cosimu_cpp(datacoord[index, ],model, prepare_lines$cc_sigma, A1, nvar, nlines, nrealiz, seed_line, prepare_lines$all_lines, prepare_lines$all_offset, prepare_lines$all_r, prepare_lines$all_phi, prepare_lines$all_theta, prepare_lines$valid_lines)						
+t_finish_neigb<-Sys.time()
+t_finish_neigb-t_start_neigb
 }
 # Add nugget effect
 if (max_nugget > eps){
@@ -310,8 +338,11 @@ index <- t(t((cc_sequence[n] + 1):cc_sequence[n + 1]))
 m1 <- length(index) 
 coord <- simucoord[index, ] 	
 # Non-conditional simulation
+t_start_neigb<-Sys.time() 
 simu <- tbmain_cosimu_cpp(coord, model, prepare_lines$cc_sigma, A1, nvar, nlines, nrealiz, seed_line, prepare_lines$all_lines, prepare_lines$all_offset,
     prepare_lines$all_r, prepare_lines$all_phi, prepare_lines$all_theta, prepare_lines$valid_lines) 
+t_finish_neigb<-Sys.time()
+t_finish_neigb-t_start_neigb
 # Add nugget effect
 if (max_nugget > eps){ 
 set.seed(seed_nugget[n])
@@ -327,18 +358,26 @@ k0 <- setdual(model, coord[i, ], sill, b, datacoord, index_missing, prepare_line
 simu[i, ] <- simu[i, ] + matrix(t(k0) %*% cc_weights, nrow = 1, ncol = nrealiz) 
 }
 } else if (cc_unique == 0) { 
+t_start_neigb<-Sys.time()
 simu <- cond_mooving_neigbor(m1, simu, nvar, nrealiz, datacoord, cc_residuals, coord, search_rotationmatrix,octant,ndata,nxsup, nysup, nzsup, xmnsup, ymnsup, zmnsup, xsizsup, ysizsup, zsizsup, ixsbtosr, iysbtosr, izsbtosr, nisb, model, sill, b, sillnugget, prepare_lines$model_rotationmatrix )
+t_finish_neigb<-Sys.time()
+t_finish_neigb-t_start_neigb
 }
 # Back transform to raw variable and rock types
 # =============================================
 if (!is.null(tableYZ)){ 
-simu_seq <- matrix(simu[ , seq(1, nrealiz, nvar)], nrow = nrow(simu), ncol = length(seq(1, nrealiz, nvar)))
-continuousvariable <- back_transform(simu_seq, tableYZ, zymin, zymax, tail_anamor)
+simu_seq <- simu[ , seq(1, nrealiz, nvar)]#matrix(simu[ , seq(1, nrealiz, nvar)], nrow = nrow(simu), ncol = length(seq(1, nrealiz, nvar)))
+continuousvariable <- back_transform(simu_seq, tableYZ, yzmin, yzmax, tail_anamor)
+continuousvariable <- matrix(continuousvariable,ncol = nrealiz/ nvar, byrow = FALSE)
 }
 simu <- simu[ ,-seq(1, nrealiz, nvar)] 
 simu <- matrix(simu, nrow = nrow(coord), ncol = nrealiz - length(seq(1, nrealiz, nvar)))
+if (is.null(vpc_matrix)){
 categoricalvariable <- t(t(pluri_truncate(simu, nfield, flag, nthres, thresholds)))
 categoricalvariable <- matrix(categoricalvariable, length(categoricalvariable) / (nrealiz / nvar), nrealiz / nvar, byrow = FALSE)
+} else{
+categoricalvariable <- t(t(vpc_truncate(coord,simu, nfield, flag, nthres, vpc_matrix)))
+}
 # Save results	
 all_coord[index, ] <- coord
 all_continuous_values[index, ] <- continuousvariable

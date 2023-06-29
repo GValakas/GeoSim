@@ -1,42 +1,42 @@
 #' Back-transformation from Gaussian to raw scale
 #' @noRd
 
-back_transform <- function(y, tableYZ, zmin, zmax, cc_tail){
+back_transform <- function(z, tableYZ, ymin, ymax, cc_tail){
 # Back-transformation from Gaussian to raw scale
 p <- nrow(tableYZ)
-m <- nrow(y)
-n <- ncol(y)
-z <- matrix(0, nrow = m, ncol = n)
+m <- nrow(z)
+n <- ncol(z)
+y <- matrix(0, nrow = m, ncol = n)
 # Do not perform back-transformation if the conversion table is empty
 if (is.null(tableYZ)){
-z <- y
+y <- z
 stop()
 }
 # Values in the lower tail (exponential extrapolation)
-z1 <- tableYZ[1, 1]
-y1 <- tableYZ[1, 2]
-I1 <- which(y < y1)
+y1 <- tableYZ[1, 1]
+z1 <- tableYZ[1, 2]
+I1 <- which(z < z1)
 
 if (length(I1) > 0){
-b0 <- (z1 - zmin) * exp(-cc_tail[1] * y1)
-z[I1] <- zmin + b0 * exp(cc_tail[1] * y[I1])
+b0 <- (y1 - ymin) * exp(-cc_tail[1] * z1)
+y[I1] <- ymin + b0 * exp(cc_tail[1] * z[I1])
 }
 # Values in the upper tail (exponential extrapolation)
-zp <- tableYZ[p, 1]
-yp <- tableYZ[p, 2]
-I2 <- which(y > yp)
+yp <- tableYZ[p, 1]
+zp <- tableYZ[p, 2]
+I2 <- which(z > zp)
 if (length(I2) > 0){
-bp <- (zp - zmax) * exp(cc_tail[2] * yp)
-z[I2] <- zmax + bp * exp(-cc_tail[2] * y[I2])
+bp <- (yp - ymax) * exp(cc_tail[2] * zp)
+y[I2] <- ymax + bp * exp(-cc_tail[2] * z[I2])
 }
 # Within-class values
 I <- c(I1, I2)
 I3 <- 1:(m * n)
 I3 <- t(t(I3[-I]))
 if (length(I3) > 0){
-z[I3] <- approx(tableYZ[, 2], tableYZ[, 1], y[I3]) # Table lookup
+y[I3] <- approx(tableYZ[, 2], tableYZ[, 1], z[I3]) # Table lookup
 }
-return(z)
+return(y)
 }
 
 #' Check the user input of the variogram for inconsistency
@@ -50,10 +50,10 @@ nvar <- sqrt(ncol(cc))
 sillnugget <- matrix(nugget, nvar, nvar, byrow = TRUE)
 # Check the sill matrix
 if (nvar > floor(nvar)){
-stop('GeoSim Package: The number of columns in the sill matrix (cc) is inconsistent')
+stop('GeoSim Package: The number of columns in the sill matrix is inconsistent.')
 }
 if (!missing(cosim) && (nvar != 1 + nfield)){
-stop('GeoSim Package: The number of columns in the sill matrix (cc) is inconsistent')
+stop('GeoSim Package: The number of columns in the sill matrix is inconsistent.')
 }
 sill<-array(0, dim = c(nvar, nvar, nst))
 A1 <- array(0, dim = c(nvar,nvar,nst))
@@ -63,30 +63,30 @@ eigenvalues <- eigen(sill[ , , i])$values
 eigenvectors <- eigen(sill[ , , i])$vectors
 A1[ , , i] <- sqrt(eigenvalues) * eigenvectors
 if (min(eigenvalues) < 0){
-stop('GeoSim Package: The sill matrix for structure ',i,' is not semi-positive definite')
+stop('GeoSim Package: The sill matrix for structure ',i,' is not semi-positive definite.')
 }
 }
 # Check the nugget
 if (!isSymmetric(sillnugget)){
-stop('GeoSim Package: The sill matrix for the nugget effect is not symmetric')
+stop('GeoSim Package: The sill matrix for the nugget effect is not symmetric.')
 }
 eigenvalues <- eigen(sillnugget)$values
 eigenvectors <- eigen(sillnugget)$vectors
 A0 <- sqrt(eigenvalues) * eigenvectors
 if (min(eigenvalues) < 0){
-stop('GeoSim Package: The sill matrix for the nugget effect is not semi-positive definite')
+stop('GeoSim Package: The sill matrix for the nugget effect is not semi-positive definite.')
 }
 # Check the Variogram Models
 for (i in 1:nst){
 if (model[i,1] == 3){ #Gamma model
 if (b[i] <= 0){
-stop('GeoSim Package: The parameter of the gamma model must be positive')
+stop('GeoSim Package: The parameter of the gamma model must be positive.')
 } # end
 } else if (model[i,1] == 4){ # Stable model
 if (b[i] > 2){
-stop('GeoSim Package: The parameter of the stable model must be less than 2')
+stop('GeoSim Package: The parameter of the stable model must be less than 2.')
 } else if (b[i] <= 0){
-stop('GeoSim Package: The parameter of the stable model must be positive')
+stop('GeoSim Package: The parameter of the stable model must be positive.')
 } else if(b[i] == 2){ # Gaussian model
 model[i,1] <- 6
 } else if (b[i] == 1){ # Exponential model
@@ -96,13 +96,13 @@ model[i,1] <- 4.5
 }
 } else if(model[i,1] == 8){ # Bessel-J model
 if (b[i] < 0.5){
-stop('GeoSim Package: The parameter of the Bessel-J model must be greater than 0.5')
+stop('GeoSim Package: The parameter of the Bessel-J model must be greater than 0.5.')
 } else if(b[i] == 0.5){ # Cardinal sine model
 model[i,1] <- 7
 }
 } else if (model[i,1] == 9){ # Bessel-K model
 if (b[i] <= 0){
-stop('GeoSim Package: The parameter of the Bessel-K model must be positive')
+stop('GeoSim Package: The parameter of the Bessel-K model must be positive.')
 } else if (b[i] == 0.5){ # Exponential model
 model[i,1] <- 2
 } else if (b[i] > 0.5){ # Simulation via spectral method
@@ -110,7 +110,7 @@ model[i,1] <- 9.5
 }
 } else if (model[i,1] == 10){ # Generalized Cauchy model
 if (b[i] <= 0){
-stop('GeoSim Package: The parameter of the generalized Cauchy model must be positive')
+stop('GeoSim Package: The parameter of the generalized Cauchy model must be positive.')
 }
 }
 }
@@ -231,6 +231,50 @@ I[which(y_simu[ , ,j] > thresholds[k])] <- 1
 i <- i + pthres[j] * I
 }
 y_simu <- flag[i]
+return(y_simu)
+}
+
+#' Converts Gaussian values into categorical values considering the vertical proportion matrix of facies
+#' @noRd
+
+vpc_truncate <- function(coord,y_simu, nfield, flag, nthres, vpc_matrix){
+# Converts Gaussian values into categorical values
+# This function use only R basic functions
+
+vpc_thresholds<-matrix(NaN, nrow = nrow(vpc_matrix),ncol = sum(nthres))
+for (i in 1:nrow(vpc_matrix)){
+vpc_thresholds[i,] <- calculate.thresholds(flag,nthres,proportions = as.vector(vpc_matrix[i, ,1]))
+}
+rownames(vpc_thresholds)<-rownames(vpc_matrix)
+m1 <- nrow(y_simu) 
+m2 <- ncol(y_simu)
+y_simu <- array(y_simu, dim = c(m1, nfield, m2 / nfield))
+y_simu <- aperm(y_simu,c(1, 3, 2))
+sthres <- c(0, cumsum(nthres))
+pthres <- c(1, cumprod(nthres + 1))
+y_simu_temp <- matrix(NaN, nrow = m1, ncol = m2 / nfield)
+depth <- as.numeric(rownames(vpc_thresholds))
+for (d in 1:(nrow(vpc_thresholds))){
+if (d==1){
+z_index <- which(coord[,3] <= depth[d])
+} else if((d > 1) & (d <= nrow(vpc_thresholds))){
+z_index <- which((depth[d-1]<coord[,3]) & (coord[,3]<= depth[d]))
+} else if (d == nrow(vpc_thresholds)){
+z_index <- which(coord[,3] > depth[d])
+}
+if (length(z_index)!=0){
+i<-1
+for (k in 1:sthres[nfield + 1]){
+j <- sum(k > sthres)
+I <- matrix(0, nrow = length(z_index), ncol = ncol(y_simu)) 
+I[which(y_simu[z_index, ,j] > vpc_thresholds[d,k])] <- 1
+i <- i + pthres[j] * I
+}
+temp_flag <- matrix(flag[i], nrow = length(z_index), ncol =  m2 / nfield, byrow = FALSE )
+y_simu_temp[z_index,] <- temp_flag 
+}
+}
+y_simu <- as.vector(y_simu_temp)
 return(y_simu)
 }
 

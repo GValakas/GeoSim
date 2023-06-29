@@ -1,16 +1,18 @@
 #' Calculate facies contacts
 #'
-#' Calculate the contacts of facies in a borehole dataset and plot them
-#' @param data_Facies A data frame having colums with names id and Facies. id colum determines the id of a borehole and Facies colum contains the category of Facies. Insert the x and y columns in the case no id coulum is defined.
-#' @param facies_color A vector with colors (color for each category) in alphabetical order of facies. The argument is used when the contacts probabilities prot are produced (if not = NULL). 
-#' @param display A value indicates to produce (=1) or not (=0) the barplots of contacts for each facies.
-#' @return The frequencies of facies contacts and the respective plots
+#' This function calculates the contacts of facies in a borehole dataset and plots them.
+#' @param data_Facies A data frame with columns 'id' and 'Facies', where 'id' determines the borehole ID and 'Facies' contains the facies categories. 
+#' If no 'id' column is defined, insert the 'x' and 'y' columns instead. 
+#' @param facies_color A vector with colors representing each facies category, arranged in alphabetical order. This argument is used when the contact probabilities 'prot' are produced (if not equal to NULL). 
+#' @param display A value indicating whether to produce bar plots of contacts for each facies (1) or not (0).
+#'
+#' @return The frequencies of facies contacts and their respective plots.
 #'
 #' @examples
 #' data_Facies <- SFM_data
-#' facies_color<-c("orange", "black", "red","green","blue") 
-#' # color in facies Alphabetic order (AL,CO,HD,MG,SG)
-#' display <- 1
+#' facies_color <- c("orange", "black", "red", "green", "blue") 
+#' # Colors in alphabetical order of facies: AL, CO, HD, MG, SG
+#' facies.contacts(data_Facies, facies_color, display = 1)
 #'
 #' @export
 
@@ -24,9 +26,9 @@ data_colnames <- colnames(data_Facies)
 if (length(which(data_colnames == "id")) == 0){
 
 	if (length(which(colnames(data_Facies) == "x")) == 0 || length(which(colnames(data_Facies) == "y")) == 0){
-	 stop("The data.frame data_Facies does not include the id of facies and must include the x and y coordinates of data")
+	 stop("GeoSim Package: The data frame 'data_Facies' must include either the 'id' column for borehole ID or the 'x' and 'y' columns for coordinates. Please ensure that your data includes a column with the name 'id' or two columns containing the coordinates with names 'x' and 'y'.")
 	}
-
+	
 index_col_x <- which(colnames(data_Facies) == "x")
 index_col_y <- which(colnames(data_Facies) == "y")
 
@@ -85,7 +87,7 @@ diag(contacts_matrix) <- NaN
 if (display==1){
 # Check the number of colors
 if (length(facies_color) != nfacies){
-warning("The number of colors does not equal to the facies categories in imported data", call. = FALSE)
+warning(paste("GeoSim Package: The function has identified", nfacies, "facies categories in the given data, but the number of colors provided does not match the number of facies categories.", call. = FALSE))
 }
 for (i in 1:nfacies){
 dev.new(height = 4, width = 3.5)

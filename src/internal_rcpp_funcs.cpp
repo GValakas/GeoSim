@@ -2,6 +2,7 @@
 #include <RcppArmadillo.h>
 //[[Rcpp::depends(RcppArmadillo)]]
 
+
 struct add_multiple {
 int incr;
 int count;
@@ -12,7 +13,8 @@ inline int operator()(int d) {
 return d + incr * count++;
 }
 };
-using namespace Rcpp;
+/* using namespace Rcpp; */
+using namespace arma;
 
 //' @noRd
 // [[Rcpp::export]]
@@ -52,7 +54,7 @@ C = 1 - 7 * pow(h1,2) + 8.75 * pow(h1,3) - 3.5 * pow(h1,5) + 0.75 * pow(h1,7);
 }else if(it == 6){
 C = exp(-pow(h,2));
 }else if(it == 7){
-C = sin(h+epsilon);
+C = sin(h + epsilon);
 }
 return(C);
 }
@@ -63,46 +65,63 @@ arma::field<arma::mat> cokrige_cpp(arma::mat datacoord, arma::uvec index_missing
 arma::cube sill, arma::mat b, arma::mat sillnugget, arma::cube model_rotationmatrix){
 
 int n = datacoord.n_rows; 
-int p = coord.n_rows;  
+int p = coord.n_rows; 
 int nst = model.n_rows; 
 int nvar = sill.n_rows; 
-arma::mat D(n,n);
-D.eye(n, n);
-arma::mat k = kron(sillnugget,D); 
-arma::mat k0(nvar*n,nvar*p);
-k0.zeros(nvar*n,nvar*p); 
+arma::mat D(n, n, fill::eye);
+arma::mat k = kron(sillnugget,D);
+arma::mat k0(nvar * n, nvar * p, fill::zeros);
 
+arma::mat R;
+arma::mat h;
+arma::mat C;
+arma::uvec idx;
+/* 
 arma::mat R(model_rotationmatrix.n_rows,model_rotationmatrix.n_cols);
 arma::mat h(n,n);
 arma::mat o1(1,n);
 o1.ones(1,n);
 arma::mat o2(n,1);
 o2.ones(n,1);
-arma::mat C(n,n);
+arma::mat C(n,n); */
 for (int i = 0; i < nst; ++i) {
 R = model_rotationmatrix.slice(i); 
 arma::mat tt = datacoord * R; 
 tt = tt * trans(tt); 
-h = -2 * tt + tt.diag(0) * o1 + o2 * trans(tt.diag(0)); 
-arma::uvec idx = find(h < 0); 
+h = -2 * tt + diagvec(tt) * ones<arma::rowvec>(n) + ones<arma::colvec>(n) * trans(diagvec(tt));
+/* h = -2 * tt + tt.diag(0) * o1 + o2 * trans(tt.diag(0));  */
+idx = find(h < 0);
+/* arma::uvec idx = find(h < 0); */ 
 h.elem(idx).fill(0);
 h = sqrt(h); 
 C = cova_cpp( model(i,0),h,b(i)); 
-k = k + kron(sill.slice(i),C); 
+k += kron(sill.slice(i), C);
+/* k = k + kron(sill.slice(i),C);  */
+
 for (int jj = 0; jj < p; ++jj) {
-h = (o2 * coord.row(jj) - datacoord) * R; 
-h = pow(h,2); 
-arma::mat h1(h.n_rows,1);  
-h1 = sum(h,1); 
-h1 = sqrt(h1); 
-C = cova_cpp(model(i,0),h1,b(i));
-NumericVector subsetCols = seq_rcpp(jj,nvar * p - 1,p);
-arma::uvec colidx = as<arma::uvec>(subsetCols);
-k0.cols(colidx) = k0.cols(colidx) + kron(sill.slice(i),C);
+h = (ones<arma::colvec>(n) * coord.row(jj) - datacoord) * R;
+/* h = (o2 * coord.row(jj) - datacoord) * R; */ 
+h = pow(h,2);
+/* arma::mat h1(h.n_rows,1); */  
+h = sum(h, 1);
+h = sqrt(h);
+/* h1 = sum(h,1); 
+h1 = sqrt(h1); */ 
+C = cova_cpp(model(i,0),h,b(i));
+/* C = cova_cpp(model(i,0),h1,b(i)); */
+
+/* arma::uvec colidx = regspace<arma::uvec>(jj, nvar * p - 1, p); */
+Rcpp::NumericVector subsetCols = seq_rcpp(jj,nvar * p - 1,p);
+arma::uvec colidx = Rcpp::as<arma::uvec>(subsetCols);
+/* arma::uvec colidx = arma::shuffle(arma::linspace<arma::uvec>(jj, nvar * p - 1, p)); */ // Shuffle the indices
+k0.cols(colidx) += kron(sill.slice(i), C);
+/* k0.cols(colidx) = k0.cols(colidx) + kron(sill.slice(i),C); */ 
 }
 }
+/* arma::uvec index_missing_shed = find((k.n_rows-1) < index_missing); */
 
 if (!index_missing.is_empty() ){
+
 k.shed_rows(index_missing);
 k.shed_cols(index_missing);
 k0.shed_rows(index_missing);
@@ -110,23 +129,29 @@ k0.shed_rows(index_missing);
 
 /* Co-kriging weights and covariances */
 arma::mat cokr_weights = solve(k,k0,arma::solve_opts::fast);
-arma::mat D2(p,p);
-D2.eye(p, p);
-arma::mat C0=kron(sillnugget,D2);
-arma::mat op1(1,p);
-op1.ones(1,p);
-arma::mat op2(p,1);
-op2.ones(p,1);
+arma::mat D2(p, p, fill::eye);
+/* arma::mat D2(p,p);
+D2.eye(p, p); */
+arma::mat C0 = kron(sillnugget,D2);
+arma::mat op1 = ones<arma::rowvec>(p);
+/* arma::mat op1(1,p);
+op1.ones(1,p); */
+arma::mat op2 = ones<arma::colvec>(p);
+/* arma::mat op2(p,1);
+op2.ones(p,1); */
 for (int i = 0; i < nst; ++i) {
 R = model_rotationmatrix.slice(i);
 arma::mat tt = coord * R ;
-arma::mat tt2 =  tt*trans(tt);
-arma::mat h = -2 * tt2 + diagvec(tt2) * op1 + op2 * trans(diagvec(tt2));
-arma::uvec idx = find(h < 0);
+tt =  tt * trans(tt);
+/* arma::mat tt2 =  tt*trans(tt); */
+arma::mat h = -2 * tt + diagvec(tt) * op1 + op2 * trans(diagvec(tt));
+idx = find(h < 0);
+/* arma::uvec idx = find(h < 0); */
 h.elem(idx).fill(0);
 h = sqrt(h);
 arma::mat C2 = cova_cpp(model(i,0),h,b(i));
-C0 = C0+kron(sill.slice(i),C2);
+C0 += kron(sill.slice(i), C2);
+/* C0 = C0+kron(sill.slice(i),C2); */
 }
 arma::mat covariances = C0 - trans(cokr_weights) * k0;
 arma::field<arma::mat> gb_cokrige(2,1);
@@ -141,8 +166,8 @@ int cc_truncate_cpp(arma::mat y_simu, int nfield, arma::vec flag, arma::vec nthr
 
 /* Converts Gaussian values into categorical values */
 arma::rowvec sthres(nthres.n_elem + 1) ;
-NumericVector idx_seq = seq_rcpp(1,(nthres.n_elem),1);
-arma::uvec idx = as<arma::uvec>(idx_seq);
+Rcpp::NumericVector idx_seq = seq_rcpp(1,(nthres.n_elem),1);
+arma::uvec idx = Rcpp::as<arma::uvec>(idx_seq);
 sthres(0) = -1;
 sthres.elem(idx) = cumsum(nthres); 
 arma::rowvec pthres(nthres.n_elem + 1);
@@ -235,7 +260,7 @@ I2.zeros(index(n_block));
 
 for (int i = 0; i < n_block; ++i) { 
 if (sr_start(i) <= sr_finish(i)){  
-I2(arma::span(arma::span(index(i),index(i + 1) - 1))) =  as<arma::vec>(wrap(seq_rcpp(sr_start(i),sr_finish(i),1))); 
+I2(arma::span(arma::span(index(i),index(i + 1) - 1))) =  Rcpp::as<arma::vec>(wrap(seq_rcpp(sr_start(i),sr_finish(i),1))); 
 } 
 }
 /* Select the acceptable neighboring data */
@@ -257,7 +282,7 @@ int nsector = 1;
 
 arma::mat flag(8,n);
 if ( octant==0 ){ 
-flag.row(0) = as<arma::rowvec>(wrap(seq_rcpp(1,n,1)));  
+flag.row(0) = Rcpp::as<arma::rowvec>(wrap(seq_rcpp(1,n,1)));  
 } else{
 nsector = 8; 
 arma::vec ind0 = arma::conv_to<arma::vec>::from(find(deltacoord(0,arma::span(0,deltacoord.n_cols-1)) > 0));
@@ -305,6 +330,8 @@ flag.row(4) = flag5;
 flag.row(5) = flag6; 
 flag.row(6) = flag7; 
 flag.row(7) = flag8;
+
+/* std::vector<int> flag_row = {flag1, flag2, flag3, flag4, flag5, flag6, flag7, flag8}; */
 	
 }	
 	
@@ -327,7 +354,7 @@ arma::rowvec n_vec(2);
 n_vec(0) = J.n_elem;
 n_vec(1) = ndata;
 int n_min = min(n_vec);
-arma::uvec n_uvec = as<arma::uvec>(seq_rcpp(0,n_min-1,1));
+arma::uvec n_uvec = Rcpp::as<arma::uvec>(seq_rcpp(0,n_min-1,1));
 index_i = index_i(n_uvec);
 I3(arma::span(k,k + n_min-1)) = arma::conv_to<arma::colvec>::from(index_i); 
 k = k + n_min ;	
@@ -358,48 +385,71 @@ arma::mat Gibbs_cosim_cpp(arma::mat datacoord, arma::mat idata, arma::mat ydata,
 
 int n = datacoord.n_rows; 
 int nvar = 1 + nfield; 
-int nsector = 1	;
-if (octant == 1){
-nsector = 8;
+int nsector = 1	; 
+if (octant == 1){ 
+nsector = 8; 
 }
-arma::mat index(n,n,arma::fill::ones);
-arma::mat gb_missing(nvar + n * nsector * nvar, n, arma::fill::zeros);
-arma::cube lambda(1 + n* nsector * nvar, nvar, n, arma::fill::zeros); 
+arma::mat index(n,n,arma::fill::ones); 
+arma::mat gb_missing(nvar + n * nsector * nvar, n, arma::fill::zeros); 
+arma::cube lambda(1 + n* nsector * nvar, nvar, n, arma::fill::zeros); 	
 
 if (ndata > 0){
-arma::mat index(n,(1 + ndata * nsector),arma::fill::ones);
-arma::mat gb_missing(nvar + ndata * nsector * nvar, n, arma::fill::zeros); 
-arma::cube lambda(1 + ndata * nsector * nvar, nvar, n, arma::fill::zeros);
-}
-arma::mat nb(n, 1, arma::fill::zeros);
-arma::mat nnb(n, 1, arma::fill::zeros);
-arma::cube sigma(nfield, nfield, n, arma::fill::ones);
-arma::mat idata2(n, 1);
+index.set_size(n,(1 + ndata * nsector));	
+/* arma::mat index(n,(1 + ndata * nsector),arma::fill::ones); */
+gb_missing.set_size(nvar + ndata * nsector * nvar, n); 
+/* arma::mat gb_missing(nvar + ndata * nsector * nvar, n, arma::fill::zeros); */ 
+lambda.set_size(1 + ndata * nsector * nvar, nvar, n); 
+/* arma::cube lambda(1 + ndata * nsector * nvar, nvar, n, arma::fill::zeros); */ 
 
-NumericVector I_seq = seq_rcpp(0, n-1, 1);
+} 
+
+arma::mat nb(n, 1, arma::fill::zeros); 
+arma::mat nnb(n, 1, arma::fill::zeros); 
+arma::cube sigma(nfield, nfield, n, arma::fill::ones); 
+arma::mat idata2(n, 1); 
+
+/* Rcpp::NumericVector I_seq = seq_rcpp(0, n-1, 1); */
+/* arma::vec missing1; */
 for (int i = 0; i < n; ++i) {
-idata2 = idata;
-idata2(i) = R_NaN;
-arma::uvec I ;
-if (cc_unique == 0){
+idata2 = idata; 
+idata2(i) = R_NaN; 
+arma::uvec I ; 
+if (cc_unique == 0){ 
 arma::field<arma::mat> search_results = cc_search_cpp(datacoord,idata2,datacoord.row(i),search_rotationmatrix,octant,ndata,nxsup,nysup,nzsup,xmnsup,ymnsup,zmnsup,xsizsup,ysizsup,zsizsup,ixsbtosr,iysbtosr,izsbtosr,nisb);
 arma::vec I_search = search_results(0,0);
 I = arma::conv_to<arma::uvec>::from(I_search);
 nb(i) = I_search.n_elem;
 } else{
-I = as<arma::uvec>(I_seq);
+I = arma::shuffle(arma::linspace<arma::uvec>(0, n - 1, n)); // Shuffle the indices
+/* I = Rcpp::as<arma::uvec>(I_seq); */
 nb(i) = n;
 }
 
+arma::vec missing1;
 if (nb(i) > 0){
 index(i,arma::span(0, (nb(i) - 1))) = arma::conv_to<arma::rowvec>::from(I);
-arma::vec missing1 = arma::conv_to<arma::vec>::from(arma::find_nonfinite(ydata(I)));
+missing1 = arma::conv_to<arma::vec>::from(arma::find_nonfinite(ydata(I)));
 arma::vec missing2 = arma::conv_to<arma::vec>::from(arma::find_nonfinite(idata2(I)));
 for (int j=0; j < nfield; ++j) {
-missing2 = missing2 + nb(i);
-missing1 = join_cols(missing1, missing2);
+missing2 +=  nb(i);
+		
+	
+		if (!missing1.is_empty()){
+		missing1 = arma::join_cols(missing1, missing2);
+		}
+		else{
+		missing1 = missing2;
+		}
 }
-nnb(i) = missing1.n_rows;
+
+if(missing1.is_empty()){
+	nnb(i) = 1;
+	  missing1 = arma::zeros(1);
+	
+	}
+	else{
+	nnb(i) = missing1.n_rows;
+	}
 if (nnb(i) == nvar * nb(i)){
 nb(i) = 0;
 } else{
@@ -407,16 +457,13 @@ gb_missing(arma::span(0, nnb(i) - 1), i) =  missing1;
 arma::uvec missing1_uvec = arma::conv_to<arma::uvec>::from(missing1);
 arma::field<arma::mat> gb_cokrige = cokrige_cpp(datacoord.rows(I), missing1_uvec, datacoord.row(i), model, sill, b, sillnugget, model_rotationmatrix);
 lambda(arma::span(0, (nb(i) * nvar - nnb(i)) - 1),arma::span(0, nvar - 1),arma::span(i, i)) = gb_cokrige(0, 0);
-sigma.slice(i) = trans(chol(gb_cokrige(1, 0)(arma::span(1, nvar-1),arma::span(1, nvar - 1))));
-gb_cokrige.clear();	
+sigma.slice(i) = trans(chol(gb_cokrige(1, 0)(arma::span(1, nvar-1),arma::span(1, nvar - 1))));	
 }
 }
 if (nb(i) == 0){
 arma::mat Q = sum(sill, 2);
 arma::mat covariances =  sillnugget + Q;
-Q.clear();
 sigma.slice(i) = trans(chol(covariances(arma::span(1, nvar - 1), arma::span(1, nvar - 1))));
-covariances.clear();
 }
 }
 /* LOOP OVER THE REALIZATIONS */
@@ -453,28 +500,22 @@ u.randu(1, 1);
 int ig = floor(n * u(0)); 
 arma::mat unorm;
 unorm.randn(nfield, 1);
-arma::mat yy_new1;
+
 if (arma::is_finite(idata(ig))){  
 if (nb(ig) > 0){
  
 arma::uvec idx1_gb = arma::conv_to<arma::uvec>::from(index(ig, arma::span(0, nb(ig) - 1)));
 arma::mat QQ = simu.slice(k);
 arma::mat yy = join_rows(ydata.rows(idx1_gb), QQ.rows(idx1_gb)); 
-QQ.clear();
-idx1_gb.clear();
 arma::mat yy_new = reshape(yy, 1, (yy.n_rows * yy.n_cols));  
-yy.clear();
 arma::uvec idx2_gb = arma::conv_to<arma::uvec>::from(gb_missing(arma::span(0, nnb(ig) - 1), ig));  
 yy_new.shed_cols(idx2_gb);
-idx2_gb.clear();
 yy_new1 = trans(lambda.slice(ig)(arma::span(0, (nb(ig)) * (nvar) - nnb(ig) - 1),arma::span(1, nvar - 1))) * trans(yy_new) + sigma.slice(ig) * unorm;
-yy_new.clear();
 }
 else{
 arma::mat yy_new1 = sigma.slice(ig) * unorm;  
 }
 arma::mat yy_new2 = trans(yy_new1); 
-yy_new1.clear();
 int gb_category2 = cc_truncate_cpp(yy_new2, nfield, flag, nthres, thresholds);
 if (gb_category2 == idata(ig)){	
 accept = 1;
@@ -502,8 +543,9 @@ arma::cube sill, arma::mat b, arma::mat sillnugget, arma::cube model_rotationmat
 
 for (int i = 0; i < m1; ++i) {
 arma::field<arma::mat> search_results = cc_search_cpp(datacoord,cc_residuals,coord.row(i),search_rotationmatrix,octant,ndata,nxsup,nysup,nzsup,xmnsup,ymnsup,zmnsup,xsizsup,ysizsup,zsizsup,ixsbtosr,iysbtosr,izsbtosr,nisb);
-arma::mat check_empty = search_results(0,0);
-if(arma::is_finite(check_empty(0))){
+/* arma::mat check_empty = search_results(0,0); */
+if (arma::is_finite(search_results(0, 0)(0))) {
+/* if(arma::is_finite(check_empty(0))){ */
 arma::mat datacoord_i = search_results(1,0);
 arma::mat cc_residuals_i = search_results(2,0);
 int n_i = datacoord_i.n_rows;
@@ -511,14 +553,14 @@ int n_i = datacoord_i.n_rows;
 arma::uvec index_missing = arma::find_nonfinite(cc_residuals_i.cols(arma::span(0, nvar - 1)));
 arma::field<arma::mat> gb_cokrige = cokrige_cpp(datacoord_i, index_missing, coord.row(i), model, sill, b, sillnugget+1e-7,model_rotationmatrix);
 arma::mat cc_weights = gb_cokrige(0,0); 
-cc_residuals_i = reshape(cc_residuals_i,n_i*nvar,nrealiz/nvar);
+cc_residuals_i = reshape(cc_residuals_i, n_i * nvar, nrealiz / nvar);
 cc_residuals_i.shed_rows(index_missing);
 
-NumericVector ii = as<NumericVector>(wrap(i));
-arma::uvec ii_uvec = as<arma::uvec>(ii);
+Rcpp::NumericVector ii = Rcpp::as<Rcpp::NumericVector>(Rcpp::wrap(i));
+arma::uvec ii_uvec = Rcpp::as<arma::uvec>(ii);
 for (int j = 0 ; j < nvar; j++){
-NumericVector I_seq = seq_rcpp(j, nrealiz-1, nvar);
-arma::uvec I = as<arma::uvec>(I_seq);
+Rcpp::NumericVector I_seq = seq_rcpp(j, nrealiz-1, nvar);
+arma::uvec I = Rcpp::as<arma::uvec>(I_seq);
 simu.submat(ii_uvec,I) = simu.submat(ii_uvec,I)+ trans(cc_weights.col(j)) * cc_residuals_i;
 }
 }
@@ -554,7 +596,7 @@ arma::mat nb(n, 1, arma::fill::zeros);
 arma::mat nnb(n, 1, arma::fill::zeros);
 arma::cube sigma(nfield, nfield, n, arma::fill::ones);
 arma::mat idata2(n, 1);
-NumericVector I_seq = seq_rcpp(0, n-1, 1);
+Rcpp::NumericVector I_seq = seq_rcpp(0, n-1, 1);
 
 for (int i = 0; i < n; ++i) {
 idata2 = idata;
@@ -567,7 +609,7 @@ arma::vec I_search = search_results(0,0);
 I = arma::conv_to<arma::uvec>::from(I_search);
 nb(i) = I_search.n_elem;
 } else{
-I = as<arma::uvec>(I_seq);
+I = Rcpp::as<arma::uvec>(I_seq);
 nb(i) = n;
 }
 
@@ -588,9 +630,7 @@ lambda(arma::span(0, (nb(i) * nvar - nnb(i)) - 1),arma::span(0, nvar - 1),arma::
 if (nb(i) == 0){
 arma::mat Q = sum(sill, 2);
 arma::mat covariances =  sillnugget + Q;
-Q.clear();
 sigma.slice(i) = trans(chol(covariances(arma::span(1, nvar - 1), arma::span(1, nvar - 1))));
-covariances.clear();
 }
 }
 /* LOOP OVER THE REALIZATIONS */
@@ -630,18 +670,13 @@ if (nb(ig) > 0){
 arma::uvec idx1_gb = arma::conv_to<arma::uvec>::from(index(ig, arma::span(0, nb(ig) - 1)));
 arma::mat QQ = simu.slice(k);
 arma::mat yy =  QQ.rows(idx1_gb);
-QQ.clear();
-idx1_gb.clear();
 arma::mat yy_new = reshape(yy, 1, (yy.n_rows * yy.n_cols));
-yy.clear();
 yy_new1 = trans(lambda.slice(ig)(arma::span(0, (nb(ig)) * (nvar) - nnb(ig) - 1),arma::span(0, nvar - 1))) * trans(yy_new) + sigma.slice(ig) * unorm;
-yy_new.clear();
 }
 else{
 arma::mat yy_new1 = sigma.slice(ig) * unorm;
 }
 arma::mat yy_new2 = trans(yy_new1);
-yy_new1.clear();
 int gb_category2 = cc_truncate_cpp(yy_new2, nfield, flag, nthres, thresholds);
 if (gb_category2 == idata(ig)){
 for (int ifield2 = 0; ifield2 < nfield; ++ifield2){
@@ -680,8 +715,8 @@ if(model(i,0) < 4.5 || model(i,0) == 9){
 /* Loop over the realizations */
 arma::mat o1(m,1,arma::fill::ones);
 for (int k = 0; k < nrealiz; ++k) {
-NumericVector index_vec = seq_rcpp(((k) * (nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
-index = as<arma::uvec>(index_vec);
+Rcpp::NumericVector index_vec = seq_rcpp(((k) * (nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
+index = Rcpp::as<arma::uvec>(index_vec);
 cc_lines = all_lines.slice(i).rows(index);
 arma::mat valid_lines_col = valid_lines.col(i);
 arma::uvec valid = find(valid_lines_col.rows(index) > 0);
@@ -715,8 +750,8 @@ sim.col(k) = sim.col(k) + sqrt(nbinvalid/nlines(i)) * arma::randn(m,1);
 /* Loop over the realizations */
 arma::mat o1(m,1,arma::fill::ones);
 for (int k = 0; k < nrealiz; ++k) {
-NumericVector index_vec = seq_rcpp(((k)*(nlines(i)-1)),((k+1)*(nlines(i)-1)),1);
-index = as<arma::uvec>(index_vec);
+Rcpp::NumericVector index_vec = seq_rcpp(((k)*(nlines(i)-1)),((k+1)*(nlines(i)-1)),1);
+index = Rcpp::as<arma::uvec>(index_vec);
 cc_lines = all_lines.slice(i).rows(index);
 arma::mat valid_lines_col = valid_lines.col(i);
 arma::uvec valid = find(valid_lines_col.rows(index) > 0);
@@ -751,8 +786,8 @@ sim.col(k) = sim.col(k) + sqrt(nbinvalid/nlines(i)) * arma::randn(m,1);
 arma::mat o1(1,m,arma::fill::ones);
 for (int k = 0; k < nrealiz; ++k) {
  /* Project the points to simulate over the lines of the i-th nested structure */
-NumericVector index_vec = seq_rcpp(((k)*(nlines(i)-1)),((k+1)*(nlines(i)-1)),1);
-index = as<arma::uvec>(index_vec);
+Rcpp::NumericVector index_vec = seq_rcpp(((k)*(nlines(i)-1)),((k+1)*(nlines(i)-1)),1);
+index = Rcpp::as<arma::uvec>(index_vec);
 cc_lines = all_lines.slice(i).rows(index);
 arma::mat x = coord * trans(cc_lines);
  /* Simulate the values by a continuous spectral method */
@@ -789,8 +824,8 @@ if(model(i,0) < 4.5 || model(i,0) == 9){
 /* Loop over the realizations */
 arma::mat o1(m,1,arma::fill::ones);
 for (int k = 0; k < nrealiz; ++k) {
-NumericVector index_vec = seq_rcpp(((k) * (nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
-index = as<arma::uvec>(index_vec);
+Rcpp::NumericVector index_vec = seq_rcpp(((k) * (nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
+index = Rcpp::as<arma::uvec>(index_vec);
 cc_lines = all_lines.slice(i).rows(index);
 arma::mat valid_lines_col = valid_lines.col(i);
 arma::uvec valid = find(valid_lines_col.rows(index) > 0);
@@ -824,8 +859,8 @@ sim.col(k) = sim.col(k) + sqrt(nbinvalid/nlines(i)) * arma::randn(m,1);
 /* Loop over the realizations */
 arma::mat o1(m,1,arma::fill::ones);
 for (int k = 0; k < nrealiz; ++k) {
-NumericVector index_vec = seq_rcpp(((k)*(nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
-index = as<arma::uvec>(index_vec);
+Rcpp::NumericVector index_vec = seq_rcpp(((k)*(nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
+index = Rcpp::as<arma::uvec>(index_vec);
 cc_lines = all_lines.slice(i).rows(index);
 arma::mat valid_lines_col = valid_lines.col(i);
 arma::uvec valid = find(valid_lines_col.rows(index) > 0);
@@ -860,8 +895,8 @@ sim.col(k) = sim.col(k) + sqrt(nbinvalid/nlines(i)) * arma::randn(m,1);
 arma::mat o1(1,m,arma::fill::ones);
 for (int k = 0; k < nrealiz; ++k) {
 /* Project the points to simulate over the lines of the i-th nested structure */
-NumericVector index_vec = seq_rcpp(((k) * (nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
-index = as<arma::uvec>(index_vec);
+Rcpp::NumericVector index_vec = seq_rcpp(((k) * (nlines(i) - 1)),((k + 1) * (nlines(i) - 1)),1);
+index = Rcpp::as<arma::uvec>(index_vec);
 cc_lines = all_lines.slice(i).rows(index);
 arma::mat x = coord * trans(cc_lines);
 /* Simulate the values by a continuous spectral method */
