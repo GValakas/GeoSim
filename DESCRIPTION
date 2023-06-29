@@ -1,11 +1,11 @@
 Package: GeoSim
 Type: Package
 Title: Geostatistical Simulation
-Version: 0.1.0
+Version: 0.1.1
 Author: George Valakas
 Maintainer: George Valakas <george.valakas@gmail.com>
 Description: Geostatistical simulation of categorical regionalized variables through conditional or unconditional Plurigaussian modeling in one, two or three-dimensions.
-Depends: R (>= 3.1.0), pracma (>= 2.4.2)
+Depends: R (>= 3.1.0)
 License: GPL-3
 Encoding: UTF-8
 LazyData: true
