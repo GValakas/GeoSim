@@ -367,6 +367,9 @@ t_finish_neigb-t_start_neigb
 # =============================================
 if (!is.null(tableYZ)){ 
 simu_seq <- simu[ , seq(1, nrealiz, nvar)]#matrix(simu[ , seq(1, nrealiz, nvar)], nrow = nrow(simu), ncol = length(seq(1, nrealiz, nvar)))
+if (!is.matrix(simu_seq)){
+simu_seq <- matrix(simu_seq,ncol=1)
+}
 continuousvariable <- back_transform(simu_seq, tableYZ, yzmin, yzmax, tail_anamor)
 continuousvariable <- matrix(continuousvariable,ncol = nrealiz/ nvar, byrow = FALSE)
 }
