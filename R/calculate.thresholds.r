@@ -22,13 +22,19 @@
 calculate.thresholds <- function(flag,nthres,proportions,ymin,ymax){
 nfield <- length(nthres) 
 cthres <- c(0,cumsum(nthres)) 
-if (length(nthres) > 2){  
-flag <- array(flag,c(nthres+1))
-} else if (length(nthres) == 2){
-flag <- matrix(flag,nrow = nthres[1] + 1, ncol = nthres[2] + 1)
-} else if(length(nthres) == 1){
-flag <- matrix(flag,nrow = 1, ncol = nthres[1] + 1)
-}
+# if (length(nthres) > 2){  
+# flag <- array(flag,c(nthres+1))
+# } else if (length(nthres) == 2){
+# flag <- matrix(flag,nrow = nthres[1] + 1, ncol = nthres[2] + 1)
+# } else if(length(nthres) == 1){
+# flag <- matrix(flag,nrow = 1, ncol = nthres[1] + 1)
+# }
+  # Determine initial shape of flag array
+  if (nfield > 1) {
+    flag <- array(flag, dim = c(nthres + 1))
+  } else {
+    flag <- as.array(flag) # or flag <- as.vector(flag) if 1D is expected
+  }
 
 if (missing(ymin) && missing(ymax)){
 ymin <- rep(-Inf, nfield) 
@@ -59,23 +65,36 @@ prop <- proportions
 # Loop over the thresholds
 if (ordered_nthres[1] > 0){
 for (i in 1:ordered_nthres[1]){ 
-# Divide the flag into two sub-flags
-if (!is.na(dim(flag)[3])){
-flag1 <- array(NaN, c(1:i,dim(flag)[2],dim(ordered_flag)[3]))
+# flag1 <- ordered_flag[1:i,,, drop = TRUE]
+# flag2 <- ordered_flag[(i + 1):(ordered_nthres[1] + 1),,, drop = TRUE]
+if (length(dim(ordered_flag)) >= 3) {
+        flag1 <- ordered_flag[1:i, , , drop = FALSE]
+        flag2 <- ordered_flag[(i + 1):(ordered_nthres[1] + 1), , , drop = FALSE]
+      } else if (length(dim(ordered_flag)) == 2) {
+        flag1 <- ordered_flag[1:i, , drop = FALSE]
+        flag2 <- ordered_flag[(i + 1):(ordered_nthres[1] + 1), , drop = FALSE]
+      } else {
+        flag1 <- ordered_flag[1:i]
+        flag2 <- ordered_flag[(i + 1):(ordered_nthres[1] + 1)]
+      }
 
-if(is.na(dim(ordered_flag)[3])){
-flag2 <- array(NaN, c(length(c((i + 1):(ordered_nthres[1] + 1 ))),dim(flag)[1]))
-} else{
-flag2 <- array(NaN, c(length(c((i + 1):(ordered_nthres[1] + 1 ))),dim(flag)[2],dim(ordered_flag)[3]))
-}
-for (j in 1:dim(ordered_flag)[3]){
-flag1[,,j] <- array(ordered_flag[i,,j])
-flag2[,,j] <- array(ordered_flag[c((i + 1):(ordered_nthres[1] +1 )),,j])
-}
-} else {
-flag1 <- ordered_flag[1:i, ];
-flag2 <- ordered_flag[(i+1):(ordered_nthres[1] + 1), ];  
-}
+# Divide the flag into two sub-flags
+# if (!is.na(dim(flag)[3])){
+# flag1 <- array(NaN, c(1:i,dim(ordered_flag)[2],dim(ordered_flag)[3]))
+
+# if(is.na(dim(ordered_flag)[3])){
+# flag2 <- array(NaN, c(length(c((i + 1):(ordered_nthres[1] + 1 ))),dim(ordered_flag)[1]))
+# } else{
+# flag2 <- array(NaN, c(length(c((i + 1):(ordered_nthres[1] + 1 ))),dim(flag)[2],dim(ordered_flag)[3]))
+# }
+# for (j in 1:dim(ordered_flag)[3]){
+# flag1[,,j] <- array(ordered_flag[i,,j])
+# flag2[,,j] <- array(ordered_flag[c((i + 1):(ordered_nthres[1] +1 )),,j])
+# }
+# } else {
+# flag1 <- ordered_flag[1:i, ];
+# flag2 <- ordered_flag[(i+1):(ordered_nthres[1] + 1), ];  
+# }
 common <- 0
 for (j in 1:length(flag1)){  
 common <- common + length(which(flag1[j] == flag2)) 
@@ -168,4 +187,3 @@ return(thresholds)
 }
  thresholds <- rep(-Inf,length(nthres))
 }
-
